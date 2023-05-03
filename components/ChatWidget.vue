@@ -15,32 +15,7 @@ const bot = ref<User>({
 
 const users = computed(() => [me.value, bot.value]);
 
-const messages = ref<Message[]>([
-  {
-    text: "Hey, how's it going?",
-    id: nanoid(),
-    userId: "user",
-    createdAt: new Date(new Date().getTime() - 5 * 60000),
-  },
-  {
-    text: "**Great!** I'm building a cool chat app at Vue.js Forge 🔥",
-    id: nanoid(),
-    userId: "assistant",
-    createdAt: new Date(new Date().getTime() - 4 * 60000),
-  },
-  {
-    text: "Very cool! I'm so jealous 😀",
-    id: nanoid(),
-    userId: "user",
-    createdAt: new Date(new Date().getTime() - 2 * 60000),
-  },
-  {
-    text: "You can join me. Just visit the  [Vue.js Forge](https://vuejsforge.com/) website and sign-up. It's free!",
-    id: nanoid(),
-    userId: "assistant",
-    createdAt: new Date(),
-  },
-]);
+const messages = useSessionStorage<Message[]>('messages', []);
 
 const usersTyping = ref<User[]>([]);
 
@@ -50,17 +25,29 @@ const usersTyping = ref<User[]>([]);
 async function handleNewMessage(message: Message) {
   messages.value.push(message);
   usersTyping.value.push(bot.value);
-  setTimeout(() => {
-    usersTyping.value = [];
+  try {
+    const response = await $fetch('/api/ai', {
+      method: 'POST',
+      body: { message: message.text }
+    })
     messages.value.push({
       id: nanoid(),
       createdAt: new Date(),
-      text: "Placeholder response until we implement the bot",
-      userId: "assistant",
+      text: response.content,
+      userId: 'assistant',
     });
-  }, 3000);
+  } catch {
+    messages.value.push({
+      id: nanoid(),
+      createdAt: new Date(),
+      text: 'Sorry, I had a problem coming up with a response.',
+      userId: 'assistant',
+    });
+  }
+  usersTyping.value.splice(usersTyping.value.indexOf(bot.value), 1)
 }
 </script>
+
 <template>
   <ChatBox
     :me="me"
